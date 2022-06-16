@@ -1,6 +1,10 @@
 server:
   port: 8083
 spring:
+  activiti:
+    database-schema-update: true
+    history-level: full
+    db-history-used: true
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://114.55.97.210:3307/notes?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
@@ -35,10 +39,10 @@ spring:
         url-pattern: "/*"
         exclusions: "*.js,*.gif,*.jpg,*.bmp,*.png,*.css,*.ico,/druid/*"
   redis:
-    host: 127.0.0.1
+    host: 124.222.108.81
     port: 6379
     database: 1
-    password: sgw1314XY
+    password: root
     timeout: 20000
     lettuce:
       pool:
@@ -50,7 +54,7 @@ spring:
         # 最小空闲连接数
         min-idle: 0
   rabbitmq:
-    host: 127.0.0.1
+    host: 124.222.108.81
     port: 5672
     username: guest
     password: guest
