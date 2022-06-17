@@ -1,10 +1,6 @@
 server:
   port: 8083
 spring:
-  activiti:
-    database-schema-update: true
-    history-level: full
-    db-history-used: true
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://114.55.97.210:3307/notes?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true

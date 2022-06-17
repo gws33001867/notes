@@ -1,4 +1,4 @@
-package com.lance.learningnotes.config;
+package com.lance.learningnotes.mq.config;
 
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;

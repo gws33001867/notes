@@ -1,0 +1,112 @@
+variables:
+  PORT: 8888
+  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  CI_DEBUG_TRACE: "false"
+  CI_USER: "admin"
+  CI_REGISTRY: 10.0.4.9
+  REPOSNAME: 'note'
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "stage"
+      variables:
+        STAGE: "true"
+        ENVIRONMENT_NAME: STAGE
+        DEPLOY_SERVER: 124.222.108.81
+        APP_NAME: note-stage
+        PROFILE: stage
+        TAG: "stage"
+    - when: always
+
+stages:
+  - build
+  - unittest
+  - deploy
+  - run
+
+# docker in docker docker安装的runner需要修改配置文件 privileged = true 开启特权模式
+services:
+  - docker:dind
+
+cache:
+  paths:
+    - .m2/repository
+    - target
+
+build:
+  stage: build
+  image: 10.0.4.9/library/maven
+  # 添加tags避免重复构建
+  tags:
+    - maven-1
+  script:
+    - echo whoami
+    - echo "building projects"
+    - echo $PROFILE
+    - mvn clean package -P$PROFILE -f ./pom.xml -Dmaven.test.skip=true
+    - pwd
+    - ls
+  artifacts:
+    paths:
+      - target/*.jar
+      - Dockerfile
+test:
+  stage: unittest
+  image: 10.0.4.9/library/maven
+  script:
+    - echo "unit test"
+    - mvn test -P$PROFILE
+    - ls
+  artifacts:
+    paths:
+      - target/site/jacoco/
+  tags:
+    - maven-1
+
+# 部署
+deploy_stage:
+  stage: deploy
+  only:
+    - stage
+  before_script:
+    - docker info
+    - mkdir -p $HOME/.docker
+    - echo $DOCKER_AUTH_CONFIG > /root/.docker/config.json
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo "building image"
+    - ls
+    - pwd
+    - docker login $CI_REGISTRY
+    #      FIXME 每次build 的时候都会去拉去新的layer 耗时
+    - docker build --build-arg APP_NAME=$APP_NAME -t $CI_REGISTRY/$REPOSNAME/$APP_NAME:latest .
+    - echo "build successfully"
+    - echo "pushing image to remote repo..."
+    - docker push $CI_REGISTRY/$REPOSNAME/$APP_NAME:latest
+    - echo "success"
+  tags:
+    - stage
+
+run_stage:
+  stage: run
+  only:
+    - stage
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - mkdir -p $HOME/.docker
+    - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+  script:
+    - echo "stopping apps..."
+    - containerid=`docker ps -a | (grep $APP_NAME || true) | awk '{print $1}'`
+    - echo $containerid
+    - if [ -n "$containerid" ]; then docker rm -f $containerid > /dev/null 2>&1;fi;
+    - imageid=`docker images | (grep  $CI_REGISTRY/$REPOSNAME/$APP_NAME || true) | awk '{print $3}'`
+    - echo $imageid
+    - if [ -n "$imageid" ]; then docker rmi --force $imageid > /dev/null 2>&1;fi;
+    - docker login $CI_REGISTRY
+    - docker pull $CI_REGISTRY/$REPOSNAME/$APP_NAME:latest
+    - docker run -itd -p $PORT:$PORT    --privileged=true  --ulimit nofile=65535 -v /app/$APP_NAME/tmp:/app/$APP_NAME/tmp   --name $APP_NAME $CI_REGISTRY/$REPOSNAME/$APP_NAME:latest
+  tags:
+    - stage
